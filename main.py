@@ -1,3 +1,4 @@
+import os
 import random
 from os import path
 from urllib.request import urlopen
@@ -8,43 +9,28 @@ import glob
 import numpy as np
 import pathlib
 from time import time
+from PIL import Image as im
 import sklearn
 from sklearn.preprocessing import MultiLabelBinarizer
+from tensorflow import clip_by_value
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Dense, Dropout, Flatten, \
     BatchNormalization, Input, ConvLSTM2D
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard
+from tensorflow.python.keras.backend import _to_tensor
+from tensorflow.python.keras.backend_config import epsilon
+from tensorflow.python.keras.layers import TimeDistributed, Conv1D, MaxPooling1D, LSTM
+from tensorflow.python.keras.losses import BinaryCrossentropy
 from tensorflow.python.layers.pooling import MaxPooling3D, MaxPooling2D
+from tensorflow.python.ops.nn_impl import sigmoid_cross_entropy_with_logits
+from tensorflow.python.ops.numpy_ops import log
 
-SIZE_DATASET = 25
-BATCH_SIZE = 32
+SIZE_DATASET = 50
 FPS = 10
-SEQ_SIZE = 70
+SEQ_SIZE = 80
 
 random.seed(50)
-
-
-def generate_song(array_song):
-    array_song = array_song.T
-    new_midi = pretty_midi.PrettyMIDI()
-    midi_list = pretty_midi.Instrument(program=pretty_midi.instrument_name_to_program('Acoustic Grand Piano'))
-    for i in range(array_song.shape[1]):
-        time = 0
-        for j in range(array_song.shape[0]):
-            if array_song[j][i] != 0 and j != array_song.shape[0] - 1:
-                time += 1
-            else:
-                if time != 0:
-                    print("pitch:" + str(i))
-                    print("time:" + str(time) + "\n")
-                    note = pretty_midi.Note(
-                        velocity=100, pitch=i, start=(j - time) / FPS, end=j / FPS)
-                    midi_list.notes.append(note)
-                    time = 0
-    new_midi.instruments.append(midi_list)
-    print('\n------ Writing MIDI ------\n')
-    new_midi.write('generated_song.midi')
 
 
 def download_MAESTRO(dataset):
@@ -56,10 +42,10 @@ def download_MAESTRO(dataset):
         zipfile.extractall(path='midi/')
     filenames = glob.glob(str(data_dir / '**/*.mid*'))
     piano_rolls = []
-    random.shuffle(filenames)
     for file in filenames[:dataset]:
         mid = pretty_midi.PrettyMIDI(file)
-        piano_rolls.append(np.transpose(mid.get_piano_roll(fs=FPS)).astype(bool).astype(int))
+        frame = np.transpose(mid.get_piano_roll(fs=FPS)).astype(bool).astype(float)
+        piano_rolls.append(frame)
         print('Number of songs:', len(piano_rolls))
     return piano_rolls
 
@@ -67,25 +53,45 @@ def download_MAESTRO(dataset):
 def get_train_and_target(piano_rolls):
     x_train = []
     y_target = []
-    for sng in piano_rolls:
-        for i in range(sng.shape[0] - SEQ_SIZE):
-            x_train.append(sng[i:SEQ_SIZE + i])
-            y_target.append(sng[SEQ_SIZE + i].T)
-    x_train, y_target = x_train[:(len(x_train) - len(x_train) % BATCH_SIZE)], y_target[:(
-            len(y_target) - len(y_target) % BATCH_SIZE)]
-    x_train, y_target = sklearn.utils.shuffle(x_train, y_target)
-    return np.expand_dims(np.asarray(x_train), axis=[2, 4]), np.asarray(y_target)
+    piano_rolls = np.vstack(piano_rolls)
+
+    data = im.fromarray(piano_rolls[:1024][:]*255)
+    if data.mode != 'L':
+        data = data.convert('L')
+    data.save('data_vizualization.png')
+
+    for i in range(piano_rolls.shape[0] - SEQ_SIZE):
+        x_train.append(piano_rolls[i:SEQ_SIZE + i, :])
+        y_target.append(piano_rolls[SEQ_SIZE + i, :])
+    return np.asarray(x_train), np.asarray(y_target)
+
+
+def bc(target, output, from_logits=False):
+    if not from_logits:
+        _epsilon = _to_tensor(epsilon(), output.dtype.base_dtype)
+        output = clip_by_value(output, _epsilon, 1 - _epsilon)
+        output = log(output / (1 - output))
+
+    return sigmoid_cross_entropy_with_logits(labels=target,
+                                             logits=output)
 
 
 def get_model():
     model = Sequential()
-    model.add(Input(shape=(SEQ_SIZE, 1, 128, 1)))
-    model.add(ConvLSTM2D(filters=128, kernel_size=(1, 3), return_sequences=True))
-    model.add(ConvLSTM2D(filters=64, kernel_size=(1, 3), return_sequences=False))
-    model.add(Flatten())
-    model.add(Dense(128, activation='relu'))
-    model.add(Dropout(0.2))
+    model.add(TimeDistributed(Conv1D(filters=135, kernel_size=2, activation='relu'),
+                              input_shape=(None, SEQ_SIZE, 128)))
+    model.add(TimeDistributed(MaxPooling1D(pool_size=1, strides=None)))
+    model.add(TimeDistributed(Conv1D(filters=135, kernel_size=2, activation='relu')))
+    model.add(TimeDistributed(MaxPooling1D(pool_size=1, strides=None)))
+    model.add(TimeDistributed(Conv1D(filters=135, kernel_size=2, activation='relu')))
+    model.add(TimeDistributed(MaxPooling1D(pool_size=1, strides=None)))
+    model.add(TimeDistributed(Flatten()))
+    model.add(LSTM(256, return_sequences=True))
+    model.add(LSTM(128))
+    model.add(BatchNormalization())
     model.add(Dense(128, activation='sigmoid'))
+    model.compile(optimizer='RMSprop', loss=bc, metrics=['accuracy'], )
+    model.summary()
 
     return model
 
@@ -93,25 +99,25 @@ def get_model():
 if __name__ == "__main__":
     x = download_MAESTRO(SIZE_DATASET)
     train, target = get_train_and_target(x)
-    print('\n------ Finished preprocessing ------\n')
+    train = np.expand_dims(train, axis=1)
 
+    print('\n------ Finished preprocessing ------\n')
     mlb = MultiLabelBinarizer()
     mlb.fit(target)
 
     model = get_model()
 
-    model.compile(loss='binary_crossentropy', optimizer=Adam(learning_rate=0.03), metrics=['accuracy'], )
-
-    model.summary()
-
     print('\n------ Model created ------\n')
-
     if path.isfile("best_model.hdf5"):
-        model.load_weights("best_model.hdf5")
-        print('\n------ Weights loaded ------\n')
+        try:
+            model.load_weights("best_model.hdf5")
+            print('\n------ Weights loaded ------\n')
+        except:
+            os.remove("best_model.hdf5")
+            pass
 
     checkpoint = ModelCheckpoint("best_model.hdf5", monitor='accuracy', verbose=1,
                                  save_best_only=True, mode='auto', period=1)
 
     print('\n------ Start training ------\n')
-    model.fit(train, target, batch_size=BATCH_SIZE, epochs=64, verbose=1, callbacks=[checkpoint])
+    model.fit(train, target, epochs=150, verbose=1, callbacks=[checkpoint])
