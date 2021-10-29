@@ -34,7 +34,8 @@ def generate_song(array_song):
 
 
 if __name__ == "__main__":
-    start_frame = download_MAESTRO(15)[12][:SEQ_SIZE]
+    #start_frame = download_MAESTRO(15)[9][:SEQ_SIZE]
+    start_frame= np.random.randint(0,2,size=(SEQ_SIZE,128))
 
     print('\n------ Creating model ------\n')
     model = get_model()
