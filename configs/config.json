@@ -1,0 +1,25 @@
+{
+    "exp": {
+      "name": "gen1"
+    },
+    "data_loader": {
+      "seq_size": 64,
+      "fps": 8
+    },
+    "model":{
+      "learning_rate": 0.001
+    },
+    "trainer":{
+      "num_epochs": 1500,
+      "batch_size": 16,
+      "verbose_training": 1,
+      "save_pickle": true
+    },
+    "callbacks":{
+      "checkpoint_monitor": "val_accuracy",
+      "checkpoint_mode": "max",
+      "checkpoint_save_best_only": true,
+      "checkpoint_save_weights_only": false,
+      "checkpoint_verbose": 2
+    }
+  }
