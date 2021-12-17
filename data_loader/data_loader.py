@@ -57,4 +57,4 @@ class DataGenerator(keras.utils.Sequence):
         return np.expand_dims(np.array(
             [cv2.imread(x, 0).T for x in
              batch_x]) / 255, axis=1), np.squeeze(np.array(
-            [cv2.imread(y, 0).T for y in batch_y])/255, axis=1)
+            [cv2.imread(y, 0).T for y in batch_y]) / 255, axis=1)
