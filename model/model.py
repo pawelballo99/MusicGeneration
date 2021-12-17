@@ -52,6 +52,6 @@ class Model:
         self.model.add(Dense(128, activation='relu'))
         self.model.add(Dense(128, activation='sigmoid'))
         opt = tf.keras.optimizers.Adam(learning_rate=self.config.model.learning_rate)
-        self.model.compile(optimizer=tf.keras.mixed_precision.LossScaleOptimizer(inner_optimizer=opt), loss='binary_crossentropy',
+        self.model.compile(optimizer=tf.keras.mixed_precision.LossScaleOptimizer(inner_optimizer=opt) if len(tf.config.list_physical_devices('GPU')) > 0 else 'Adam', loss='binary_crossentropy',
                            metrics=['accuracy'])
         self.model.summary()

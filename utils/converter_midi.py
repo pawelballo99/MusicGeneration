@@ -32,8 +32,9 @@ def midi_to_png(file):
             frame = (mid.get_piano_roll(fs=8)).astype(bool).astype(float)
             save_png(frame)
         except:
-            print(str(file) + "was removed")
-            os.remove(file)
+            print(str(file) + " was removed")
+            if os.path.exists(file):
+                os.remove(file)
     else:
         mid = pretty_midi.PrettyMIDI(os.path.join(r, file))
         frame = (mid.get_piano_roll(fs=config.data_loader.fps)).astype(bool).astype(float)

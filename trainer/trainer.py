@@ -4,7 +4,8 @@ from tensorflow.keras import mixed_precision
 from tensorflow.python.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, TensorBoard
 from time import time
 
-mixed_precision.set_global_policy('mixed_float16')
+if len(tf.config.list_physical_devices('GPU')) > 0:
+    mixed_precision.set_global_policy('mixed_float16')
 
 
 class ModelTrainer:
