@@ -3,6 +3,7 @@ import os
 import pathlib
 import pretty_midi
 from PIL import Image
+from data_loader.data_loader import DataLoader
 from model.model import Model
 from utils.config import process_config
 
@@ -34,14 +35,15 @@ def generate_song(array_song, fps):
                     midi_list.notes.append(note)
                     tm = 0
     new_midi.instruments.append(midi_list)
-    dir="generated_midi\\"
+    dir = "generated_midi\\"
     if not os.path.exists(dir):
         os.mkdir(dir)
-    new_midi.write(dir+'generated_song.midi')
+    new_midi.write(dir + 'generated_song.midi')
     data = Image.fromarray(array_song * 255)
     if data.mode != 'L':
         data = data.convert('L')
-    data.save(dir+'generated_song.png')
+    data.save(dir + 'generated_song.png')
+
 
 def get_path():
     best_h5 = 0
@@ -49,26 +51,23 @@ def get_path():
     dir = "experiments\\gen1\\checkpoint"
     for subdir, dirs, files in os.walk(dir):
         for file in files:
-            value=int(file.split("_")[3].split('.')[1])
-            if best_h5<value:
-                best_h5=value
-                idx=files.index(file)
-    return dir+"\\"+files[idx]
-
-
+            value = int(file.split("_")[3].split('.')[1])
+            if best_h5 < value:
+                best_h5 = value
+                idx = files.index(file)
+    return dir + "\\" + files[idx]
 
 
 if __name__ == "__main__":
-    #start_frame = download_MAESTRO(15)[9][:SEQ_SIZE]
     config = process_config()
     model = Model(config).model
-    path = get_path()
-    model.load_weights(path)
     start_frame = np.random.randint(0, 2, size=(config.data_loader.seq_size, 128))
+    #start_frame = np.squeeze(DataLoader(config).train_generator.__getitem__(2)[0][0], axis=0)
     vanish_proof = 0.2
-    vanish_inc = 1.001
+    vanish_inc = 1.0001
     for i in range(length_song * config.data_loader.fps):
-        y = model.predict(np.expand_dims(start_frame[i:config.data_loader.seq_size + i, :], axis=[0, 1]))+vanish_proof
+        y = model.predict(
+            np.expand_dims(start_frame[i:config.data_loader.seq_size + i, :], axis=[0, 1])) + vanish_proof * vanish_inc
         for i in range(y.shape[1]):
             if y[0, i] >= 0.5:
                 y[0, i] = 1
