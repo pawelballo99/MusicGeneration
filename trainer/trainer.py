@@ -25,8 +25,16 @@ class ModelTrainer:
             TensorBoard(log_dir="logs/{}".format(time())),
             ReduceLROnPlateau(verbose=1),
             ModelCheckpoint(
-                filepath=self.config.callbacks.checkpoint_dir + "\\" + self.config.exp.name + "_{epoch:02d}_{accuracy:.4f}_{val_accuracy:.4f}.h5",
-                monitor=self.config.callbacks.checkpoint_monitor,
+                filepath=self.config.callbacks.checkpoint_dir_val_acc + "\\max_val_accuracy.h5",
+                monitor="val_accuracy",
+                mode=self.config.callbacks.checkpoint_mode,
+                save_best_only=self.config.callbacks.checkpoint_save_best_only,
+                verbose=self.config.callbacks.checkpoint_verbose,
+                save_format="h5",
+            ),
+            ModelCheckpoint(
+                filepath=self.config.callbacks.checkpoint_dir_acc + "\\max_accuracy.h5",
+                monitor="accuracy",
                 mode=self.config.callbacks.checkpoint_mode,
                 save_best_only=self.config.callbacks.checkpoint_save_best_only,
                 verbose=self.config.callbacks.checkpoint_verbose,

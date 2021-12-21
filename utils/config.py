@@ -17,5 +17,6 @@ def process_config():
     exp_path = str(pathlib.Path().resolve()) + "\\experiments"
     if not os.path.isdir(exp_path):
         os.makedirs(exp_path)
-    config.callbacks.checkpoint_dir = os.path.join(exp_path, config.exp.name, "checkpoint/")
+    config.callbacks.checkpoint_dir_val_acc = exp_path + "/max_val_accuracy"
+    config.callbacks.checkpoint_dir_acc = exp_path + "/max_accuracy"
     return config

@@ -32,7 +32,7 @@ class DataLoader:
                 label_filenames.append(os.path.join(subdir, file))
         shuffled_train_filenames, shuffled_label_filenames = shuffle(train_filenames, label_filenames)
         X_train_filenames, X_val_filenames, y_train, y_val = train_test_split(
-            shuffled_train_filenames, shuffled_label_filenames, test_size=0.2, random_state=1)
+            shuffled_train_filenames, shuffled_label_filenames, test_size=0.25, random_state=8)
 
         return DataGenerator(X_train_filenames, y_train, self.config.trainer.batch_size,
                              self.config.data_loader.seq_size), DataGenerator(X_val_filenames,
