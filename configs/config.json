@@ -3,15 +3,15 @@
       "name": "gen1"
     },
     "data_loader": {
-      "seq_size": 64,
-      "fps": 8,
+      "seq_size": 80,
+      "fps": 10,
       "load_max_acc": true
     },
     "model":{
       "learning_rate": 0.001
     },
     "trainer":{
-      "num_epochs": 1500,
+      "num_epochs": 100,
       "batch_size": 32,
       "verbose_training": 1,
       "save_pickle": true

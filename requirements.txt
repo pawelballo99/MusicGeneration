@@ -1,0 +1,10 @@
+opencv-python
+pretty-midi
+Pillow
+scikit-learn
+music21
+tqdm
+tensorflow
+dotmap
+protobuf
+numpy

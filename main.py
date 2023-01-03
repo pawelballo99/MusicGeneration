@@ -2,9 +2,6 @@ from utils.config import process_config
 from model.model import Model
 from data_loader.data_loader import DataLoader
 from trainer.trainer import ModelTrainer
-import sys
-import os
-import h5py
 
 
 def main():
